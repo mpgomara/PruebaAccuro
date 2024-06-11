@@ -9,7 +9,11 @@ El conjunto de evaluación/prueba son los extraidos directamente de miguel2.mp4 
 El proyecto esta pensado para poder reconocer a mas de una persona, solo haría falta añadir un conjunto de imagenes de entrenamiento de esa persona en PruebaAccuro/entrenamiento/[NombrePersona]
 
 DEPENDENCIAS
+
     Python 3.9.2
+    
     opencv-contrib-python 4.10.0.82
+    
     numpy 1.24.2
+    
     imutils 0.5.4
