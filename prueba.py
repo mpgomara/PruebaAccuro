@@ -1,148 +1,179 @@
+import threading
+import queue
 import cv2
 import os
+import imutils
 import numpy as np
 
-def main():
-#    ProcesadoGuardado()
-   EntrenamientoModeloLBPH()
-   TestModeloLBPH()
+def inputTask(cola, comando_cola, dataPath):
+    personPath = dataPath
+    while True:
+        comando = comando_cola.get()
+        if comando == 'input':
+            while os.path.exists(personPath):
+                nombre = input("\nIntroduzca un identificativo: ")
+                personPath = dataPath + '/' + nombre
+            cola.put(nombre)
+        elif comando == 'exit':
+            break
 
+def trainTask(cola_train, comando_cola_train, faceRecognizer):
+    while True:
+        comando = comando_cola_train.get()
+        if comando == 'train':
+            EntrenamientoModeloLBPH(faceRecognizer)
+            cola_train.put("trained_true")
+            # Hasta aqui ok
+        elif comando == 'leer_modelo':
+            print("Leyendo modelo...")
+            faceRecognizer.read("modeloLBPHFace.xml")
+        elif comando == 'exit':
+            break
 
-def ProcesadoGuardado():
-    pahtEntrada = "bbdd/brutos/entrada"
-    contenido = os.listdir(pahtEntrada)
-    faceClassifier = cv2.CascadeClassifier(cv2.data.haarcascades+'haarcascade_frontalface_default.xml')
-    #Bucle procesado y guardado de imagenes
-    for filename in contenido:
-        try:
-        # Preprocesado
-            inImage = cv2.imread(pahtEntrada + "/" + filename, cv2.IMREAD_COLOR)
-            gray = cv2.cvtColor(inImage, cv2.COLOR_BGR2GRAY)
-            grayEQImage = cv2.equalizeHist(gray)
-
-        # Detección de rostros
-            faces = faceClassifier.detectMultiScale(grayEQImage, 1.3, 5)
-
-            # cv2.imshow("grayEQ",grayEQImage)
-            # cv2.waitKey()
-            print(grayEQImage.shape)
-            print(inImage.shape)
-            print(faces)
-
-            if faces!=():
-                # Encuadra todas las "caras" detectadas en la imagen
-                for (x,y,w,h) in faces:
-                    outImage = cv2.rectangle(grayEQImage,(x,y),(x+w,y+h),(0,255,0),2)
-                    outImage = cv2.resize(outImage,(150,150), interpolation=cv2.INTER_CUBIC)
-            else:
-                outImage = cv2.resize(grayEQImage,(150,150), interpolation=cv2.INTER_CUBIC)
-        
-            # guardar imagen
-            cv2.imwrite("bbdd/procesados/"+filename, outImage)
-                # print(filename)
-
-        except cv2.error as err:
-            print("Error: {}".format(err))
-
-def EntrenamientoModeloLBPH():
-    if os.path.exists('modeloLBPHFace.xml'):
-        print("Usando modelo ya almacenado")
-        return
-    
-    grupo = os.listdir("entrenamiento")
-    face_recognizer = cv2.face.LBPHFaceRecognizer_create()
+def EntrenamientoModeloLBPH(faceRecognizer):
+    peopleList = os.listdir("entrenamiento")
+    print("Lista de personas: " + str(peopleList))    
     
     labels = []
     facesData = []
     label = 0
-
+ 
     #Bucle personas a reconocer
-    for persona in grupo:
-        # personPath = dataPath + '/' + persona
-        print('Leyendo las imágenes')
+    for person in peopleList:
+        print('Leyendo las imágenes de '+ person)
 
         #bucle imagenes entrenamiento cada persona
-        for fileName in os.listdir('entrenamiento/' + persona):
-            print('Rostros: ', persona + '/' + fileName)
+        for fileName in os.listdir('entrenamiento/' + person):
+            # print('Rostros: ' + person + '/' + fileName)
             labels.append(label)
-            facesData.append(cv2.imread('entrenamiento/' +persona+'/'+fileName, cv2.IMREAD_GRAYSCALE))
+            auxImg = cv2.imread('entrenamiento/' + person +'/'+ fileName, cv2.IMREAD_GRAYSCALE)
+            if auxImg is None: 
+                print("Error leyendo imagen")
+            else:
+                facesData.append(auxImg)
+
         label = label + 1
 
     # Entrenando el reconocedor de rostros
     print("Entrenando...")
-    face_recognizer.train(facesData, np.array(labels))
-    face_recognizer.write('modeloLBPHFace.xml')
-    print("Modelo almacenado...")
-
-def TestModeloLBPH():
-    grupo = os.listdir("prueba/miguel2")
-    face_recognizer = cv2.face.LBPHFaceRecognizer_create()
-
-    # Leyendo modelo entrenado
-    face_recognizer.read("modeloLBPHFace.xml")
-
-    # datos para evaluación
-    caras = os.listdir("bbdd/brutos/copia/miguel2")
-
-    stats = []
-    n = len(grupo)
-    nP = len(caras)
-    detectadas = 0
-    nFP = 0
+    faceRecognizer.train(facesData, np.array(labels))
+    faceRecognizer.write('modeloLBPHFace.xml')
+    print("Modelo almacenado")
 
 
-    # Análisis y visualización clasificados como negativos
-    # ClassN = []
-    # ClassFN = []
 
-    for aux in grupo:
-        imagen = cv2.imread("prueba/miguel2/"+aux, cv2.IMREAD_GRAYSCALE)
-        result = face_recognizer.predict(imagen)
-        # Humbral de detección
-        if result[1] < 70:
-            if aux[0] == 'N':
-                nFP = nFP + 1
-            stats.append(result[1])
-            detectadas = detectadas + 1
+faceClassifier = cv2.CascadeClassifier(cv2.data.haarcascades+'haarcascade_frontalface_default.xml')
+faceRecognizer = cv2.face.LBPHFaceRecognizer_create()
 
-        # Análisis y visualización clasificados como negativos
-        # else:
-        #     # print(str(aux[0])+", "+str(result[1]))
-        #     if aux[0] == 'N':
-        #         ClassN.append(result[1])
-        #         print(str(aux[0])+", "+str(result[1]))
-        #         cv2.imshow("VN",imagen)
-        #     else:
-        #         ClassFN.append(result[1])
-        #         # print(str(aux[0])+", "+str(result[1]))
-        #         cv2.imshow("FN",imagen)
-        #     cv2.waitKey(1)
+dataPath = 'entrenamiento'
+cola = queue.Queue()
+comando_cola = queue.Queue()
+inputThread = threading.Thread(target=inputTask, args=(cola, comando_cola, dataPath))
+inputThread.start()
 
-    # print("Media FN: "+ str(np.mean(ClassFN)))
-    # print("Max FN: "+ str(np.max(ClassFN)))
-    # print("Min FN: "+ str(np.min(ClassFN)))
+cola_train = queue.Queue()
+comando_cola_train = queue.Queue()
+trainThread = threading.Thread(target=trainTask, args=(cola_train, comando_cola_train, faceRecognizer))
+trainThread.start()
 
-    nN = n - nP
-    nFN = nP - detectadas
-    nVP = detectadas - nFP
-    nVN = nN - nFP
 
-    print("\n##### EVALUACIÓN #####")
-    print("Totales: " + str(n))
-    print("Positivos: " + str(nP))
-    print("Negativos: " + str(nN))
-    print("--------------------")
-    print("Verdaderos positivos: " + str(nVP))
-    print("Falsos positivos: " + str(nFP))
-    print("Verdaderos negativos: " + str(nVN))
-    print("Falsos negativos: " + str(nFN))
-    print("Sensibilidad: " + str(nVP/(nP+nFN)))
-    print("Especificidad: " + str(nVN/(nFP+nVN)))
-    print("Precisión: " + str(nVP/(nVP+nFP)))
+cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+k = -1
+training = False
+trained = False
+count = 0
+aux = 10
+peopleList = os.listdir("entrenamiento")
 
-    # cv2.destroyAllWindows()
+if os.listdir("entrenamiento") == []:
+    print("Aun no hay perfiles para detectar")
+
+if os.path.exists('modeloLBPHFace.xml'):
+    print("Usando modelo ya almacenado")
+    print("Leyendo modelo...")
+    faceRecognizer.read("modeloLBPHFace.xml")
+    trained = True
+
+print("\nPresione [Ctrl + <] para añadir un nuevo rostro a reconocer")
+
+
+while k != 27:
+    k = cv2.pollKey()
+
+    ret, frame = cap.read()
+    if not ret: break
+
+    frame =  imutils.resize(frame, width=640)
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    grayEQ = cv2.equalizeHist(gray)
+    faces = faceClassifier.detectMultiScale(grayEQ,1.3,5)
 
     
-if __name__ =='__main__':
-    main()
-  
+    if not cola_train.empty():
+        aux_comando_train = cola_train.get()
+        if aux_comando_train =='trained_true':
+            trained = True
+            cola_train.put("leer_modelo")
+            # faceRecognizer.read("modeloLBPHFace.xml")
+            
+
+    for (x,y,w,h) in faces:
+        if training:
+            if count==10:
+                print("Extrayendo imagenes para entrenamiento...")
+            cv2.rectangle(grayEQ, (x,y),(x+w,y+h),(0,255,0),2)
+            rostro = grayEQ[y-aux:y+h+aux,x-aux:x+w+aux]
+            rostro = cv2.resize(rostro,(150,150),interpolation=cv2.INTER_CUBIC)
+            cv2.imwrite(personPath + '/rostro_'+nombre+'_{}.jpg'.format(count),rostro)
+            count = count + 1
+            if count>400:
+                training = False
+                count = 0
+                comando_cola_train.put('train')
+
+            # B G R
+            cv2.putText(frame,'Capturando',(x,y-5),1,1.3,(255,255,0),1,cv2.LINE_AA)
+            cv2.rectangle(frame, (x,y),(x+w,y+h),(0,128,255),2)
+        else:
+            if trained:
+                cv2.rectangle(grayEQ, (x,y),(x+w,y+h),(0,255,0),2)
+                rostro = grayEQ[y-aux:y+h+aux,x-aux:x+w+aux]
+                rostro = cv2.resize(rostro,(150,150),interpolation=cv2.INTER_CUBIC)
+                result = faceRecognizer.predict(rostro)
+
+                if result[1] < 70:
+                    cv2.putText(frame,'{}'.format(peopleList[result[0]]),(x,y-25),2,1.1,(0,255,0),1,cv2.LINE_AA)
+                    cv2.rectangle(frame, (x,y),(x+w,y+h),(0,255,0),2)
+            else:
+                cv2.putText(frame,'Desconocido',(x,y-20),2,0.8,(0,0,255),1,cv2.LINE_AA)
+                cv2.rectangle(frame, (x,y),(x+w,y+h),(0,0,255),2)
+            # B G R
+            # cv2.putText(frame,'{}'.format(k),(x,y-5),1,1.3,(255,255,0),1,cv2.LINE_AA)
+            # cv2.rectangle(frame, (x,y),(x+w,y+h),(0,255,0),2)
+
+
+    if k == 28:
+        comando_cola.put('input')
+
+    if not cola.empty():
+        nombre = cola.get()
+        personPath = dataPath + '/' + nombre
+        cola.task_done()  # Llama a task_done después de obtener un elemento
+        os.makedirs(personPath)
+        print('Carpeta creada: ',personPath)
+        peopleList = os.listdir("entrenamiento")
+        training = True
+
+    cv2.imshow('Reconocedor facial', frame)
+
+# Señala al hilo de entrada que debe detenerse
+comando_cola.put('exit')
+comando_cola_train.put('exit')
+
+# Espera a que el hilo de entrada termine
+inputThread.join()
+# trainThread.join()
+
+# Libera la captura de video y cierra todas las ventanas
+cap.release()
+cv2.destroyAllWindows()
