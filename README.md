@@ -1,12 +1,10 @@
 PRUEBA ACCURO - Reconocimiento facial
 
-Incialmente plantee hacer todo en un mismo archivo, pero acabe haciendo un script separado (procesadoGuardado.py) para la generación de la bbdd de imágenes, este proceso se lleva a cabo partiendo de unos videos en formato mp4; para finalmente acabar añadiendo en este script el procesado de las imágenes (puntos 1 y 2 del enunciado).
+El proyecto reconoce caras en imagenes en streaming y les dibuja un rectangulo al rededo.
+Si el modelo de reconocimiento facial reconoce el rostro detectado el rectangulo sera verde y tendrá el nombre asociado a ese perfil de entrenamiento en la parte superior.
+Si no reconoce el rostro el rectangulo sera rojo, con un texto de desconocido.
+Durante la fase de captura de imagenes sera naranja, con un texto que indica el proceso de captura de imagenes.
 
-La generación de los conjuntos de entrenamiento y prueba es manual, principalmente para limpiar el conjunto de entrenamiento de posibles falsos positivos; lo cual no interesa en el conjunto de prueba.
-El conjunto de entrenamiento son las imagenes extraidas del video miguel1.mp4 y miguel3.mp4 habiendo eliminado los falsos positivos (capteras PruebaAccuro/bbdd/brutos/copia/miguel1 y miguel3, pasadas a PruebaAccuro/entrenamiento).
-El conjunto de evaluación/prueba son los extraidos directamente de miguel2.mp4 como los devuelve el script procesadoGuardado.py
-
-El proyecto esta pensado para poder reconocer a mas de una persona, solo haría falta añadir un conjunto de imagenes de entrenamiento de esa persona en PruebaAccuro/entrenamiento/[NombrePersona]
 
 DEPENDENCIAS
 
